@@ -276,6 +276,9 @@ private:
 
     // ADD MORE DATA MEMBERS HERE, AS NECESSARY
     double resizeAlpha;
+    int deletedElements = 0;
+    //Deleted and Non-Deleted
+    int totalElements = 0;
 
 };
 
@@ -309,7 +312,10 @@ HashTable<K,V,Prober,Hash,KEqual>::~HashTable()
 {
   for (HashItem* item : table_ )
   {
-    delete item;
+    if(item != nullptr)
+    {
+      delete item;
+    }
   }
   table_.clear();
 }
@@ -325,31 +331,15 @@ bool HashTable<K,V,Prober,Hash,KEqual>::empty() const
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 size_t HashTable<K,V,Prober,Hash,KEqual>::size() const
 {
-    size_t count = 0;
-    for(HashItem* item: table_)
-    {
-        if(item != nullptr && !item->deleted)
-        {
-            count++;
-        }
-    }
-    return count;
+    return totalElements - deletedElements;
 }
 
 // To be completed
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
 {
-    size_t count = 0;
-    for(HashItem* item: table_)
-    {
-        if(item != nullptr)
-        {
-            count++;
-        }
-    }
 
-    double currentLoadingFact =  static_cast<double>(count) / CAPACITIES[mIndex_];
+    double currentLoadingFact  = static_cast<double>(totalElements) / CAPACITIES[mIndex_];
     if ( currentLoadingFact >= resizeAlpha)
     {
       resize();
@@ -363,11 +353,11 @@ void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
     if(table_[h] == nullptr )
     {
         table_[h] = new HashItem(p); 
+        totalElements++;
     }
     else if (kequal_(table_[h]->item.first, p.first))
     {
       table_[h]->item.second = p.second;
-      table_[h]-> deleted = false;
     }
     else
     {
@@ -383,7 +373,9 @@ void HashTable<K,V,Prober,Hash,KEqual>::remove(const KeyType& key)
     if (item != nullptr)
     {
         item->deleted = true;
+        deletedElements++;
     }
+
 }
 
 
@@ -457,7 +449,9 @@ typename HashTable<K,V,Prober,Hash,KEqual>::HashItem* HashTable<K,V,Prober,Hash,
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::resize()
 {
-    int newIndex = ++mIndex_;
+    int newIndex = mIndex_ + 1;
+    mIndex_++;
+
     if (newIndex >= static_cast<int>((sizeof(CAPACITIES) / sizeof(CAPACITIES[0]))))
     {
       throw std::logic_error("Maximum Capacity Exceeded");
@@ -465,31 +459,28 @@ void HashTable<K,V,Prober,Hash,KEqual>::resize()
 
     size_t newCapacity = CAPACITIES[newIndex];
     std::vector<HashItem*> newTable(newCapacity, nullptr);
+    std::vector<HashItem*> temp = table_;
 
-    for(HashItem* item : table_)
+    table_ = newTable;
+
+    for(HashItem* item : temp)
     {
-        if(item != nullptr && !item->deleted)
+        if(item != nullptr)
         {
-            HASH_INDEX_T newIndex = hash_(item->item.first) % newCapacity;
-            //size_t probeCount = 0;
-
-            while (newTable[newIndex] != nullptr)
-            {
-                newIndex = (newIndex + 1) % newCapacity;
-                //probeCount++;
-            }
-            /*if (probeCount >= newCapacity)
-            {
-              throw std::logic_error("Unexpected full table.");
-            }*/
-            newTable[newIndex] = item;
-        }
-        else 
-        { 
-          delete item;
+          if (item->deleted)
+          {
+            delete item;
+          }
+          else
+          {
+            HASH_INDEX_T p = probe(item->item.first);
+            table_[p] = item;
+          }
         }
     }
-    table_.swap(newTable);
+    totalElements -= deletedElements;
+    deletedElements = 0;
+
 }
 
 // Almost complete

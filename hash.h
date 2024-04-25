@@ -5,6 +5,7 @@
 #include <cmath>
 #include <random>
 #include <chrono>
+#include <climits>
 
 typedef std::size_t HASH_INDEX_T;
 
@@ -20,7 +21,46 @@ struct MyStringHash {
     HASH_INDEX_T operator()(const std::string& k) const
     {
         // Add your code here
+        unsigned long long w[5] = {0}; // Store vlaues
+        int length = k.length();
+        int numSegs = (length + 5) / 6; // Calculate num segments
 
+        for ( int i = 0; i < 5; ++i)
+        {
+          int segmentStart = std::max(0, length -6 * (i+1));
+          int segmentEnd = length - 6 * i;
+          unsigned long long segmentValue = 0;
+          unsigned long long base = 1;
+
+          for (int j = segmentEnd - 1; j >= segmentStart; --j)
+          {
+            unsigned long long charValue =  letterDigitToNumber(k[j]);
+            unsigned long long addValue = charValue * base;
+            
+            if(segmentValue > ULLONG_MAX - addValue)
+            {
+              std::cerr << "Potential Overflow error" << std::endl;
+              return 0;
+            }
+          
+            segmentValue += addValue;
+            base *= 36;
+            //std::cout << "debug char " << k[j] << " value " << letterDigitToNumber(k[j]) 
+                          // << " Segment Value " << segmentValue << std::endl;
+            //std::cout << "Segemnt " << i << ": " << segmentValue << std::endl;
+          }
+          
+          w[4-i] = segmentValue;
+        }
+
+        unsigned long long hash = 0;
+        for (int i = 0; i < 5; ++i)
+        {
+          hash += rValues[i] * w[i];
+          std::cout << "w[" << i << "]: " << hash << std::endl;
+        }
+        
+        return hash;
 
     }
 
@@ -28,6 +68,15 @@ struct MyStringHash {
     HASH_INDEX_T letterDigitToNumber(char letter) const
     {
         // Add code here or delete this helper function if you do not want it
+        if(isdigit(letter))
+        {
+          return 26 + letter - '0';
+        }
+        else
+        {
+          letter = std::tolower(letter);
+          return letter - 'a';
+        }
 
     }
 
